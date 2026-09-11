@@ -12,3 +12,4 @@ frontend/dist/
 *.egg-info/
 *.log
 feedback.jsonl
+.claude/
