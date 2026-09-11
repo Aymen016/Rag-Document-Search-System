@@ -24,6 +24,8 @@ enough information"* instead of guessing.
 </p>
 
 ---
+### Walkthrough Video Link: https://youtu.be/V_MIaQOuNIY
+---
 
 ## Table of contents
 
