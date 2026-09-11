@@ -32,7 +32,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0e0f13;
     --surface: #16181f;
     --surface-raised: #1c1e27;
@@ -58,6 +58,31 @@
   }
 }
 
+:root[data-theme="dark"] {
+  --bg: #0e0f13;
+  --surface: #16181f;
+  --surface-raised: #1c1e27;
+  --fg: #eceef2;
+  --muted: #9aa0ab;
+  --muted-2: #6b7280;
+  --border: #262933;
+  --border-strong: #33363f;
+  --accent: #7677f0;
+  --accent-hover: #8a8bf4;
+  --accent-soft: #1f2040;
+  --bubble-user: #5b5ce6;
+  --bubble-assistant: #1c1e27;
+  --danger: #f87171;
+  --danger-soft: #2a1515;
+  --success: #4ade80;
+  --success-soft: #12261a;
+  --warn: #fbbf24;
+  --warn-soft: #2a2110;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -67,6 +92,15 @@ body {
   background: var(--bg);
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.2s ease;
+}
+
+button,
+input,
+.message-bubble,
+.card,
+.citation-panel {
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 button,
@@ -172,6 +206,41 @@ input {
   box-shadow: var(--shadow-sm);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.icon-btn:hover {
+  color: var(--fg);
+  border-color: var(--border-strong);
+  background: var(--bg);
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+}
+
 main {
   flex: 1;
   overflow: hidden;
@@ -271,6 +340,18 @@ main {
   gap: 10px;
   margin-bottom: 22px;
   align-items: flex-start;
+  animation: message-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes message-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .message-row.user {
@@ -443,6 +524,11 @@ main {
 .feedback-btn.active {
   color: var(--accent);
   background: var(--accent-soft);
+}
+
+.feedback-btn.copied {
+  color: var(--success);
+  background: var(--success-soft);
 }
 
 .error-banner {
@@ -646,6 +732,12 @@ main {
   padding: 20px;
   margin-bottom: 18px;
   box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
 }
 
 .card-header {
@@ -809,6 +901,21 @@ main {
 .btn svg {
   width: 14px;
   height: 14px;
+}
+
+.spinner {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .status-line {

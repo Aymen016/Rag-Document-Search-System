@@ -36,7 +36,9 @@ export default function IngestPanel() {
   const [uploadResult, setUploadResult] = useState(null);
   const [runReport, setRunReport] = useState(null);
   const [sources, setSources] = useState([]);
-  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [ingesting, setIngesting] = useState(false);
+  const busy = uploading || ingesting;
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
@@ -73,7 +75,7 @@ export default function IngestPanel() {
   async function handleUpload(e) {
     e.preventDefault();
     if (pendingFiles.length === 0) return;
-    setBusy(true);
+    setUploading(true);
     setError(null);
     try {
       const result = await uploadFiles(pendingFiles, subfolder);
@@ -82,12 +84,12 @@ export default function IngestPanel() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setBusy(false);
+      setUploading(false);
     }
   }
 
   async function handleRunIngest() {
-    setBusy(true);
+    setIngesting(true);
     setError(null);
     try {
       const report = await runIngest();
@@ -96,7 +98,7 @@ export default function IngestPanel() {
     } catch (err) {
       setError(err.message);
     } finally {
-      setBusy(false);
+      setIngesting(false);
     }
   }
 
@@ -172,7 +174,8 @@ export default function IngestPanel() {
           )}
 
           <button className="btn" type="submit" disabled={busy || pendingFiles.length === 0} style={{ marginTop: 14 }}>
-            {busy ? "Uploading…" : `Upload${pendingFiles.length > 0 ? ` (${pendingFiles.length})` : ""}`}
+            {uploading && <span className="spinner" />}
+            {uploading ? "Uploading…" : `Upload${pendingFiles.length > 0 ? ` (${pendingFiles.length})` : ""}`}
           </button>
         </form>
         {uploadResult && (
@@ -195,7 +198,8 @@ export default function IngestPanel() {
           index. Re-run this any time you add more files.
         </p>
         <button className="btn" onClick={handleRunIngest} disabled={busy}>
-          {busy ? "Running…" : "Run ingestion pipeline"}
+          {ingesting && <span className="spinner" />}
+          {ingesting ? "Running…" : "Run ingestion pipeline"}
         </button>
         {runReport && (
           <div className="ingest-report">

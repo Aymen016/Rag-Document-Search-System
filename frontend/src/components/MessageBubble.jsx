@@ -67,6 +67,17 @@ function Avatar({ role }) {
 export default function MessageBubble({ message, onCitationClick, onFeedback }) {
   const isUser = message.role === "user";
   const isThinking = message.streaming && !message.content;
+  const [copied, setCopied] = React.useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard access can be denied by the browser; fail silently.
+    }
+  }
 
   return (
     <div className={`message-row ${isUser ? "user" : "assistant"}`}>
@@ -112,6 +123,23 @@ export default function MessageBubble({ message, onCitationClick, onFeedback }) 
                 <path d="M17 2v11l-5 8a2.5 2.5 0 0 1-2.5-2.5V14H3.8a2 2 0 0 1-1.98-2.3l1.38-8A2 2 0 0 1 5.15 2H17Z" />
                 <path d="M17 13h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1h-3" />
               </svg>
+            </button>
+            <button
+              className={`feedback-btn ${copied ? "copied" : ""}`}
+              onClick={handleCopy}
+              aria-label="Copy answer"
+              title="Copy answer"
+            >
+              {copied ? (
+                <svg viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+              )}
             </button>
           </div>
         )}
