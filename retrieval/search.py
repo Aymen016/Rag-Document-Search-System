@@ -81,6 +81,18 @@ def build_index(
     texts = [c["text"] for c in chunks]
     metadatas = [_flat_metadata(c) for c in chunks]
 
+    # Two chunks only hash to the same id if source_path + chunk_index + text
+    # are all identical — genuine duplicate content (e.g. repeated boilerplate
+    # across pages in a book-length PDF). Chroma's upsert rejects a batch
+    # outright if it contains duplicate ids, so dedupe first and keep the
+    # first occurrence; no searchable content is lost since the text is
+    # byte-identical.
+    seen: set[str] = set()
+    deduped = [
+        (i, t, m) for i, t, m in zip(ids, texts, metadatas) if not (i in seen or seen.add(i))
+    ]
+    ids, texts, metadatas = (list(x) for x in zip(*deduped)) if deduped else ([], [], [])
+
     # Batch embed + upsert so this scales past a few thousand chunks without
     # holding every vector in memory at once.
     batch_size = 128
