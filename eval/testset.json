@@ -1,0 +1,45 @@
+{
+  "_readme": "TEMPLATE — replace every question below once you've ingested real docs (Phase 1-2). Keep the category spread: simple factual, table_or_code, multi_hop, ambiguous, unanswerable. gold_source_substrings should each be a distinctive fragment of a real source_path/doc_title you expect the right chunk to come from — used for a lightweight Recall@k / MRR check without needing exact chunk IDs. gold_answer_keywords are a crude, free stand-in for LLM-as-judge correctness (all must appear, case-insensitive, in the generated answer) — swap in `ragas` or an LLM-judge call in run_eval.py if you want something less brittle.",
+  "questions": [
+    {
+      "id": "q1_simple_factual",
+      "question": "What does the ImagePullBackOff pod status mean?",
+      "category": "simple_factual",
+      "expected_answerable": true,
+      "gold_source_substrings": ["kubernetes-docs"],
+      "gold_answer_keywords": ["image", "pull"]
+    },
+    {
+      "id": "q2_table_or_code",
+      "question": "How many replicas does the prod Deployment run, according to the manifest table?",
+      "category": "table_or_code",
+      "expected_answerable": true,
+      "gold_source_substrings": ["kubernetes-docs"],
+      "gold_answer_keywords": ["replicas"]
+    },
+    {
+      "id": "q3_multi_hop",
+      "question": "If a pod is stuck in ImagePullBackOff, what command should I run to see the underlying event, and what's the most common root cause?",
+      "category": "multi_hop",
+      "expected_answerable": true,
+      "gold_source_substrings": ["kubernetes-docs"],
+      "gold_answer_keywords": ["describe"]
+    },
+    {
+      "id": "q4_ambiguous_phrasing",
+      "question": "My container won't start because the registry can't be reached — what's going on?",
+      "category": "ambiguous",
+      "expected_answerable": true,
+      "gold_source_substrings": ["kubernetes-docs"],
+      "gold_answer_keywords": ["image"]
+    },
+    {
+      "id": "q5_unanswerable",
+      "question": "What was the company's Q3 revenue last year?",
+      "category": "unanswerable",
+      "expected_answerable": false,
+      "gold_source_substrings": [],
+      "gold_answer_keywords": []
+    }
+  ]
+}

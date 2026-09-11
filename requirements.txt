@@ -1,0 +1,38 @@
+# --- Backend ---
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-dotenv==1.0.1
+pydantic==2.9.2
+python-multipart==0.0.12   # required by FastAPI for the /ingest/upload file endpoint
+# httpx 0.28 dropped the `proxies` kwarg that groq 0.11 / openai / anthropic SDKs
+# still pass, raising "Client.__init__() got an unexpected keyword argument 'proxies'".
+httpx==0.27.2
+
+# --- Vector store & retrieval ---
+# 0.5.4 pins chroma-hnswlib==0.7.5, which has prebuilt wheels for Python 3.12
+# on Windows/macOS/Linux. 0.5.5+ pins 0.7.6, whose only wheels are prereleases —
+# a source build there needs a C++ toolchain. Same client API either way.
+chromadb==0.5.4
+# chromadb 0.5.4 calls posthog's old positional capture() signature; posthog 3+
+# changed it, which spams "capture() takes 1 positional argument but 3 were given"
+# on every call. Pin to 2.x so telemetry stays quiet.
+posthog<3.0.0
+rank-bm25==0.2.2
+
+# --- Embeddings & reranking (free, run locally, no API key) ---
+sentence-transformers==3.1.1
+
+# --- Parsing ---
+pymupdf==1.24.10          # fast PDF text/layout extraction
+markdown-it-py==3.0.0
+beautifulsoup4==4.12.3    # HTML docs
+pandas==2.2.3              # CSV loader
+
+# --- LLM generation (free-tier friendly) ---
+groq==0.11.0                       # default: Groq free tier (Llama 3.x), no cost
+google-generativeai==0.8.3         # optional: Gemini free tier
+# openai==1.51.0                   # optional: uncomment if you add an OpenAI key
+# anthropic==0.34.2                # optional: uncomment if you add an Anthropic key
+
+# --- Eval ---
+tqdm==4.66.5
