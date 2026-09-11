@@ -1,11 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import CitationPanel from "./CitationPanel.jsx";
-import { streamChat, sendFeedback } from "../api.js";
-
-function genId() {
-  return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-}
 
 const SUGGESTIONS = [
   "How do I fix an ImagePullBackOff error?",
@@ -13,109 +8,20 @@ const SUGGESTIONS = [
   "What's the rolling update strategy for the checkout-api Deployment?",
 ];
 
-export default function ChatThread({ initialMessages, onMessagesChange }) {
-  const [messages, setMessages] = useState(initialMessages || []);
+export default function ChatThread({ messages, isStreaming, error, onSubmit, onFeedback }) {
   const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const [activeCitation, setActiveCitation] = useState(null);
-  const [error, setError] = useState(null);
-  const abortRef = useRef(null);
   const listEndRef = useRef(null);
 
   useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-    onMessagesChange?.(messages);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
-  function updateLastMessage(patch) {
-    setMessages((prev) => {
-      const next = [...prev];
-      const last = next[next.length - 1];
-      next[next.length - 1] = { ...last, ...patch };
-      return next;
-    });
-  }
-
-  async function submitQuery(query) {
-    if (!query || isStreaming) return;
-
-    setError(null);
+  function handleSend(query) {
+    const trimmed = query.trim();
+    if (!trimmed || isStreaming) return;
+    onSubmit(trimmed);
     setInput("");
-
-    // History sent to the backend: only role+content, in the OpenAI-style
-    // shape the /chat endpoint expects.
-    const history = messages
-      .filter((m) => m.content)
-      .map((m) => ({ role: m.role, content: m.content }));
-
-    const userMessage = { id: genId(), role: "user", content: query };
-    const assistantMessage = {
-      id: genId(),
-      role: "assistant",
-      content: "",
-      citations: [],
-      streaming: true,
-      refused: false,
-      rating: null,
-    };
-    setMessages((prev) => [...prev, userMessage, assistantMessage]);
-    setIsStreaming(true);
-
-    const controller = new AbortController();
-    abortRef.current = controller;
-
-    try {
-      await streamChat(
-        { query, history, docTitle: null },
-        (event) => {
-          if (event.type === "token") {
-            setMessages((prev) => {
-              const next = [...prev];
-              const last = next[next.length - 1];
-              next[next.length - 1] = { ...last, content: last.content + event.text };
-              return next;
-            });
-          } else if (event.type === "refused") {
-            updateLastMessage({ content: event.text, refused: true, streaming: false });
-          } else if (event.type === "done") {
-            updateLastMessage({
-              citations: event.citations,
-              streaming: false,
-            });
-          }
-        },
-        { signal: controller.signal }
-      );
-    } catch (err) {
-      setError(err.message);
-      updateLastMessage({ streaming: false });
-    } finally {
-      setIsStreaming(false);
-      updateLastMessage({ streaming: false });
-    }
-  }
-
-  async function handleFeedback(messageId, rating) {
-    const assistantIndex = messages.findIndex((m) => m.id === messageId);
-    const message = messages[assistantIndex];
-    if (!message) return;
-    setMessages((prev) =>
-      prev.map((m) => (m.id === messageId ? { ...m, rating } : m))
-    );
-    const precedingUser = [...messages.slice(0, assistantIndex)]
-      .reverse()
-      .find((m) => m.role === "user");
-    try {
-      await sendFeedback({
-        query: precedingUser?.content || "",
-        answer: message.content,
-        rating,
-        citations: message.citations || [],
-      });
-    } catch {
-      // Feedback logging is best-effort; don't interrupt the chat over it.
-    }
   }
 
   return (
@@ -136,7 +42,7 @@ export default function ChatThread({ initialMessages, onMessagesChange }) {
               </p>
               <div className="suggestions">
                 {SUGGESTIONS.map((s) => (
-                  <button key={s} className="suggestion-chip" onClick={() => submitQuery(s)}>
+                  <button key={s} className="suggestion-chip" onClick={() => handleSend(s)}>
                     {s}
                   </button>
                 ))}
@@ -149,7 +55,7 @@ export default function ChatThread({ initialMessages, onMessagesChange }) {
                   key={m.id}
                   message={m}
                   onCitationClick={setActiveCitation}
-                  onFeedback={(rating) => handleFeedback(m.id, rating)}
+                  onFeedback={(rating) => onFeedback(m.id, rating)}
                 />
               ))}
               {error && <p className="error-banner">{error}</p>}
@@ -162,7 +68,7 @@ export default function ChatThread({ initialMessages, onMessagesChange }) {
           className="chat-input-row"
           onSubmit={(e) => {
             e.preventDefault();
-            submitQuery(input.trim());
+            handleSend(input);
           }}
         >
           <input

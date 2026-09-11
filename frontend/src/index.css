@@ -344,6 +344,12 @@ main {
   display: none;
 }
 
+.session-spinner {
+  flex-shrink: 0;
+  border-color: var(--border-strong);
+  border-top-color: var(--accent);
+}
+
 .session-delete-btn {
   display: none;
   background: none;

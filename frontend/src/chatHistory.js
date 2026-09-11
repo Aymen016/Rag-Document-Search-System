@@ -40,8 +40,25 @@ export function newSession() {
     id: `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     title: "New chat",
     messages: [],
+    streaming: false,
     updatedAt: Date.now(),
   };
+}
+
+export function newMessageId() {
+  return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// A reload while a response was still streaming leaves a stale in-flight
+// flag behind — nothing will ever resolve it, since the fetch that owned it
+// is gone. Clear those so the UI doesn't show a permanently "generating"
+// message with no way to finish.
+export function sanitizeSessions(sessions) {
+  return sessions.map((s) => ({
+    ...s,
+    streaming: false,
+    messages: s.messages.map((m) => (m.streaming ? { ...m, streaming: false } : m)),
+  }));
 }
 
 export function deriveTitle(messages) {

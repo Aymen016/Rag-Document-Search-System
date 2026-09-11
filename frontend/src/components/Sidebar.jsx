@@ -20,7 +20,11 @@ export default function Sidebar({ sessions, activeId, onSelect, onNew, onDelete,
               onClick={() => onSelect(s.id)}
             >
               <span className="session-title">{s.title}</span>
-              <span className="session-time">{timeAgo(s.updatedAt)}</span>
+              {s.streaming ? (
+                <span className="spinner session-spinner" title="Still generating…" />
+              ) : (
+                <span className="session-time">{timeAgo(s.updatedAt)}</span>
+              )}
               <button
                 className="session-delete-btn"
                 onClick={(e) => {

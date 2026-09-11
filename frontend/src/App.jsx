@@ -1,8 +1,18 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import ChatThread from "./components/ChatThread.jsx";
 import IngestPanel from "./components/IngestPanel.jsx";
 import Sidebar from "./components/Sidebar.jsx";
-import { loadSessions, saveSessions, loadActiveId, saveActiveId, newSession, deriveTitle } from "./chatHistory.js";
+import { streamChat, sendFeedback } from "./api.js";
+import {
+  loadSessions,
+  saveSessions,
+  loadActiveId,
+  saveActiveId,
+  newSession,
+  newMessageId,
+  deriveTitle,
+  sanitizeSessions,
+} from "./chatHistory.js";
 
 function getInitialTheme() {
   const stored = localStorage.getItem("theme");
@@ -15,7 +25,7 @@ export default function App() {
   const [theme, setTheme] = useState(getInitialTheme);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sessions, setSessions] = useState(() => {
-    const existing = loadSessions();
+    const existing = sanitizeSessions(loadSessions());
     return existing.length > 0 ? existing : [newSession()];
   });
   const [activeId, setActiveId] = useState(() => {
@@ -24,6 +34,16 @@ export default function App() {
     if (stored && existing.some((s) => s.id === stored)) return stored;
     return existing.length > 0 ? existing[0].id : null;
   });
+  const [errors, setErrors] = useState({});
+
+  // Streaming is driven from here rather than from ChatThread so an in-flight
+  // request survives switching sessions, tabs, or opening a new chat — the
+  // response keeps streaming into its session in the background and is there
+  // when you come back, instead of being silently orphaned mid-answer.
+  const sessionsRef = useRef(sessions);
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -42,6 +62,25 @@ export default function App() {
     () => sessions.find((s) => s.id === activeId) || sessions[0],
     [sessions, activeId]
   );
+
+  function updateSessionMessages(sessionId, updater) {
+    setSessions((prev) =>
+      prev.map((s) => {
+        if (s.id !== sessionId) return s;
+        const messages = updater(s.messages);
+        return {
+          ...s,
+          messages,
+          updatedAt: Date.now(),
+          title: s.title === "New chat" ? deriveTitle(messages) : s.title,
+        };
+      })
+    );
+  }
+
+  function setSessionStreaming(sessionId, streaming) {
+    setSessions((prev) => prev.map((s) => (s.id === sessionId ? { ...s, streaming } : s)));
+  }
 
   function handleNewChat() {
     const s = newSession();
@@ -70,14 +109,87 @@ export default function App() {
     });
   }
 
-  function handleMessagesChange(id, messages) {
-    setSessions((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? { ...s, messages, updatedAt: Date.now(), title: s.title === "New chat" ? deriveTitle(messages) : s.title }
-          : s
-      )
+  async function submitQuery(sessionId, query) {
+    const trimmed = query.trim();
+    const session = sessionsRef.current.find((s) => s.id === sessionId);
+    if (!trimmed || !session || session.streaming) return;
+
+    setErrors((prev) => ({ ...prev, [sessionId]: null }));
+
+    const history = session.messages
+      .filter((m) => m.content)
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    const userMessage = { id: newMessageId(), role: "user", content: trimmed };
+    const assistantMessage = {
+      id: newMessageId(),
+      role: "assistant",
+      content: "",
+      citations: [],
+      streaming: true,
+      refused: false,
+      rating: null,
+    };
+
+    updateSessionMessages(sessionId, (msgs) => [...msgs, userMessage, assistantMessage]);
+    setSessionStreaming(sessionId, true);
+
+    function patchLastMessage(patch) {
+      updateSessionMessages(sessionId, (msgs) => {
+        const next = [...msgs];
+        next[next.length - 1] = { ...next[next.length - 1], ...patch };
+        return next;
+      });
+    }
+
+    try {
+      await streamChat({ query: trimmed, history, docTitle: null }, (event) => {
+        if (event.type === "token") {
+          updateSessionMessages(sessionId, (msgs) => {
+            const next = [...msgs];
+            const last = next[next.length - 1];
+            next[next.length - 1] = { ...last, content: last.content + event.text };
+            return next;
+          });
+        } else if (event.type === "refused") {
+          patchLastMessage({ content: event.text, refused: true, streaming: false });
+        } else if (event.type === "done") {
+          patchLastMessage({ citations: event.citations, streaming: false });
+        }
+      });
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, [sessionId]: err.message }));
+      patchLastMessage({ streaming: false });
+    } finally {
+      setSessionStreaming(sessionId, false);
+      patchLastMessage({ streaming: false });
+    }
+  }
+
+  async function handleFeedback(sessionId, messageId, rating) {
+    const session = sessionsRef.current.find((s) => s.id === sessionId);
+    if (!session) return;
+    const assistantIndex = session.messages.findIndex((m) => m.id === messageId);
+    const message = session.messages[assistantIndex];
+    if (!message) return;
+
+    updateSessionMessages(sessionId, (msgs) =>
+      msgs.map((m) => (m.id === messageId ? { ...m, rating } : m))
     );
+
+    const precedingUser = [...session.messages.slice(0, assistantIndex)]
+      .reverse()
+      .find((m) => m.role === "user");
+    try {
+      await sendFeedback({
+        query: precedingUser?.content || "",
+        answer: message.content,
+        rating,
+        citations: message.citations || [],
+      });
+    } catch {
+      // Feedback logging is best-effort; don't interrupt the chat over it.
+    }
   }
 
   return (
@@ -146,8 +258,11 @@ export default function App() {
           {tab === "chat" ? (
             <ChatThread
               key={activeSession?.id}
-              initialMessages={activeSession?.messages || []}
-              onMessagesChange={(msgs) => handleMessagesChange(activeSession.id, msgs)}
+              messages={activeSession?.messages || []}
+              isStreaming={!!activeSession?.streaming}
+              error={errors[activeSession?.id] || null}
+              onSubmit={(q) => submitQuery(activeSession.id, q)}
+              onFeedback={(messageId, rating) => handleFeedback(activeSession.id, messageId, rating)}
             />
           ) : (
             <IngestPanel />
