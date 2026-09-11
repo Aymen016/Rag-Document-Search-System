@@ -1,9 +1,11 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import MessageBubble from "./MessageBubble.jsx";
 import CitationPanel from "./CitationPanel.jsx";
 import { streamChat, sendFeedback } from "../api.js";
 
-let nextId = 1;
+function genId() {
+  return `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
 
 const SUGGESTIONS = [
   "How do I fix an ImagePullBackOff error?",
@@ -11,8 +13,8 @@ const SUGGESTIONS = [
   "What's the rolling update strategy for the checkout-api Deployment?",
 ];
 
-export default function ChatThread({ docTitle }) {
-  const [messages, setMessages] = useState([]);
+export default function ChatThread({ initialMessages, onMessagesChange }) {
+  const [messages, setMessages] = useState(initialMessages || []);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [activeCitation, setActiveCitation] = useState(null);
@@ -20,8 +22,10 @@ export default function ChatThread({ docTitle }) {
   const abortRef = useRef(null);
   const listEndRef = useRef(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     listEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    onMessagesChange?.(messages);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   function updateLastMessage(patch) {
@@ -45,9 +49,9 @@ export default function ChatThread({ docTitle }) {
       .filter((m) => m.content)
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const userMessage = { id: nextId++, role: "user", content: query };
+    const userMessage = { id: genId(), role: "user", content: query };
     const assistantMessage = {
-      id: nextId++,
+      id: genId(),
       role: "assistant",
       content: "",
       citations: [],
@@ -63,7 +67,7 @@ export default function ChatThread({ docTitle }) {
 
     try {
       await streamChat(
-        { query, history, docTitle },
+        { query, history, docTitle: null },
         (event) => {
           if (event.type === "token") {
             setMessages((prev) => {

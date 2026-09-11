@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ChatThread from "./components/ChatThread.jsx";
 import IngestPanel from "./components/IngestPanel.jsx";
+import Sidebar from "./components/Sidebar.jsx";
+import { loadSessions, saveSessions, loadActiveId, saveActiveId, newSession, deriveTitle } from "./chatHistory.js";
 
 function getInitialTheme() {
   const stored = localStorage.getItem("theme");
@@ -11,12 +13,72 @@ function getInitialTheme() {
 export default function App() {
   const [tab, setTab] = useState("chat");
   const [theme, setTheme] = useState(getInitialTheme);
-  const [chatKey, setChatKey] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sessions, setSessions] = useState(() => {
+    const existing = loadSessions();
+    return existing.length > 0 ? existing : [newSession()];
+  });
+  const [activeId, setActiveId] = useState(() => {
+    const existing = loadSessions();
+    const stored = loadActiveId();
+    if (stored && existing.some((s) => s.id === stored)) return stored;
+    return existing.length > 0 ? existing[0].id : null;
+  });
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    saveSessions(sessions);
+  }, [sessions]);
+
+  useEffect(() => {
+    if (activeId) saveActiveId(activeId);
+  }, [activeId]);
+
+  const activeSession = useMemo(
+    () => sessions.find((s) => s.id === activeId) || sessions[0],
+    [sessions, activeId]
+  );
+
+  function handleNewChat() {
+    const s = newSession();
+    setSessions((prev) => [s, ...prev]);
+    setActiveId(s.id);
+    setTab("chat");
+    setSidebarOpen(false);
+  }
+
+  function handleSelectSession(id) {
+    setActiveId(id);
+    setTab("chat");
+    setSidebarOpen(false);
+  }
+
+  function handleDeleteSession(id) {
+    setSessions((prev) => {
+      const next = prev.filter((s) => s.id !== id);
+      if (next.length === 0) {
+        const s = newSession();
+        setActiveId(s.id);
+        return [s];
+      }
+      if (id === activeId) setActiveId(next[0].id);
+      return next;
+    });
+  }
+
+  function handleMessagesChange(id, messages) {
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? { ...s, messages, updatedAt: Date.now(), title: s.title === "New chat" ? deriveTitle(messages) : s.title }
+          : s
+      )
+    );
+  }
 
   return (
     <div className="app">
@@ -33,13 +95,16 @@ export default function App() {
           </div>
         </div>
         <div className="header-actions">
-          {tab === "chat" && (
-            <button className="icon-btn" onClick={() => setChatKey((k) => k + 1)} aria-label="New chat" title="New chat">
-              <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </button>
-          )}
+          <button
+            className="icon-btn sidebar-toggle"
+            onClick={() => setSidebarOpen((v) => !v)}
+            aria-label="Toggle chat history"
+            title="Chat history"
+          >
+            <svg viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
           <button
             className="icon-btn"
             onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
@@ -67,7 +132,28 @@ export default function App() {
           </nav>
         </div>
       </header>
-      <main>{tab === "chat" ? <ChatThread key={chatKey} docTitle={null} /> : <IngestPanel />}</main>
+      <div className="app-body">
+        <Sidebar
+          sessions={sessions}
+          activeId={activeSession?.id}
+          onSelect={handleSelectSession}
+          onNew={handleNewChat}
+          onDelete={handleDeleteSession}
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+        <main>
+          {tab === "chat" ? (
+            <ChatThread
+              key={activeSession?.id}
+              initialMessages={activeSession?.messages || []}
+              onMessagesChange={(msgs) => handleMessagesChange(activeSession.id, msgs)}
+            />
+          ) : (
+            <IngestPanel />
+          )}
+        </main>
+      </div>
     </div>
   );
 }

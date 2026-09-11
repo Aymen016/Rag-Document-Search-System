@@ -241,10 +241,144 @@ input {
   fill: none;
 }
 
+.app-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
 main {
   flex: 1;
   overflow: hidden;
   display: flex;
+  min-width: 0;
+}
+
+/* ---- Sidebar ---- */
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.new-chat-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.new-chat-btn:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+.new-chat-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.session-item:hover {
+  background: var(--bg);
+}
+
+.session-item.active {
+  background: var(--accent-soft);
+}
+
+.session-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.session-item.active .session-title {
+  color: var(--fg);
+  font-weight: 500;
+}
+
+.session-time {
+  font-size: 11px;
+  color: var(--muted-2);
+  flex-shrink: 0;
+}
+
+.session-item:hover .session-time {
+  display: none;
+}
+
+.session-delete-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.session-item:hover .session-delete-btn {
+  display: flex;
+}
+
+.session-delete-btn:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.session-delete-btn svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+}
+
+.sidebar-toggle {
+  display: none;
+}
+
+.sidebar-backdrop {
+  display: none;
 }
 
 /* ---- Chat ---- */
@@ -1082,5 +1216,33 @@ main {
 
   .ingest-panel {
     padding: 20px 16px;
+  }
+
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 57px;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: min(280px, 82vw);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 57px 0 0 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 25;
   }
 }
