@@ -1,12 +1,17 @@
 import React from "react";
 
-const CITATION_RE = /\[(\d+)\]/g;
+// Matches the standard [n] format the system prompt asks for, plus the
+// 【n†...】 format some models (Groq's gpt-oss, notably) fall back to on their
+// own despite instructions — a leftover from OpenAI tool-citation training.
+// Whichever one matches, group 1 or group 2 carries the numeric id.
+const CITATION_RE = /\[(\d+)\]|【(\d+)[^】]*】/g;
 
 /**
- * Splits message text on [1], [2]... markers and renders the valid ones as
- * clickable buttons that open the citation in the side panel. Citation IDs
- * that don't match anything in `citations` (hallucinated ones the backend
- * already flagged) render as plain text instead of a broken link.
+ * Splits message text on citation markers and renders the valid ones as
+ * clickable buttons that open the citation in the side panel, always shown
+ * as a clean [n] regardless of which raw format the model produced. Citation
+ * IDs that don't match anything in `citations` (hallucinated ones the
+ * backend already flagged) render as plain [n] text instead of a broken link.
  */
 function renderWithCitations(text, citations, onCitationClick) {
   const byId = Object.fromEntries(citations.map((c) => [c.id, c]));
@@ -20,7 +25,7 @@ function renderWithCitations(text, citations, onCitationClick) {
     if (match.index > lastIndex) {
       parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
     }
-    const id = Number(match[1]);
+    const id = Number(match[1] ?? match[2]);
     const citation = byId[id];
     if (citation) {
       parts.push(

@@ -20,6 +20,11 @@ import config
 from generation.prompts import build_messages
 
 CITATION_RE = re.compile(r"\[(\d+)\]")
+# Some models (notably Groq's gpt-oss) fall back to their own built-in
+# tool-citation format — e.g. "【4†L23-L27】" — instead of the [n] format the
+# system prompt asks for. Recognized here too so citation verification still
+# works even when a model ignores the instructed format.
+ALT_CITATION_RE = re.compile(r"【(\d+)[^】]*】")
 
 NO_CONFIDENT_ANSWER = (
     "I don't have enough information in these documents to answer that."
@@ -36,7 +41,9 @@ def _top_score(chunks: list[dict]) -> float:
 
 
 def extract_cited_ids(text: str) -> list[int]:
-    return sorted({int(m) for m in CITATION_RE.findall(text)})
+    ids = {int(m) for m in CITATION_RE.findall(text)}
+    ids |= {int(m) for m in ALT_CITATION_RE.findall(text)}
+    return sorted(ids)
 
 
 def verify_citations(text: str, chunks: list[dict]) -> dict:

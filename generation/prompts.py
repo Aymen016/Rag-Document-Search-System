@@ -14,6 +14,7 @@ context chunks provided below — never your own outside knowledge.
 Each chunk has a citation ID like [1], [2], etc. When you use information \
 from a chunk, cite its ID inline immediately after the relevant sentence, \
 like this: "Pods enter ImagePullBackOff when the image can't be pulled [2]."
+Use exactly that plain [n] format — never a format like "【2†source】".
 
 Rules:
 - If the context does not contain enough information to answer, say exactly: \
